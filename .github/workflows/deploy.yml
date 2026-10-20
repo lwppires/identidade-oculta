@@ -9,37 +9,28 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
-    permissions:
-      contents: read
-
     steps:
-      - name: Baixar projeto
-        uses: actions/checkout@v5
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Configurar Node.js
-        uses: actions/setup-node@v6
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          node-version: 22
-          cache: yarn
+          node-version: "20"
+          cache: "npm"
 
-      - name: Instalar Yarn 1
-        run: npm install -g yarn@1.22.22
+      - name: Install dependencies
+        run: npm ci
 
-      - name: Instalar dependencias
-        run: yarn install --frozen-lockfile
+      - name: Build
+        run: npm run build
 
-      - name: Gerar build
-        run: yarn build
-
-      - name: Configurar SSH
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts
-
-      - name: Publicar na VPS
-        run: |
-          rsync -avz --delete \
-            dist/ \
-            ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/var/www/identidade-oculta/dist/
+      - name: Deploy via rsync
+        uses: burnett01/rsync-deployments@7.0.1
+        with:
+          switches: -avzr --delete
+          path: build/ # mude para dist/ se usar Vite
+          remote_path: /var/www/io.lwpires.com/
+          remote_host: ${{ secrets.VPS_HOST }}
+          remote_user: deploy
+          remote_key: ${{ secrets.VPS_SSH_KEY }}
