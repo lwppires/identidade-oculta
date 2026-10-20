@@ -20,21 +20,32 @@ interface ModalState {
 export default function App() {
   const [available, setAvailable] = useState<Carta[]>(() => [...baralho])
   const [current, setCurrent] = useState<Carta | null>(null)
-  const [opened, setOpened] = useState<string[]>([])
-  const [remainingTips, setRemainingTips] = useState<string[]>([])
+  const [revealedTips, setRevealedTips] = useState<Set<number>>(new Set())
   const [showGuess, setShowGuess] = useState(false)
   const [guess, setGuess] = useState('')
   const [modal, setModal] = useState<ModalState | null>(null)
+  const [isSpeaking, setIsSpeaking] = useState(false)
 
-  const allOpened = !!current && remainingTips.length === 0
+  const allRevealed = !!current && revealedTips.size === current.dicas.length
+
+  const speak = (text: string) => {
+    if (!window.speechSynthesis) return
+    window.speechSynthesis.cancel()
+    const utterance = new SpeechSynthesisUtterance(text)
+    utterance.lang = 'pt-BR'
+    utterance.rate = 0.92
+    utterance.onstart = () => setIsSpeaking(true)
+    utterance.onend = () => setIsSpeaking(false)
+    utterance.onerror = () => setIsSpeaking(false)
+    window.speechSynthesis.speak(utterance)
+  }
 
   const drawCard = () => {
     if (available.length === 0) return
     const idx = Math.floor(Math.random() * available.length)
     const card = available[idx]
     setCurrent(card)
-    setOpened([])
-    setRemainingTips([...card.dicas])
+    setRevealedTips(new Set())
     setShowGuess(false)
     setGuess('')
   }
@@ -44,26 +55,18 @@ export default function App() {
       setAvailable(prev => prev.filter(c => c !== current))
     }
     setCurrent(null)
-    setOpened([])
-    setRemainingTips([])
+    setRevealedTips(new Set())
     setShowGuess(false)
     setGuess('')
     setModal(null)
   }
 
-  const openTip = () => {
-    setRemainingTips(prev => {
-      if (prev.length === 0) return prev
-
-      const idx = Math.floor(Math.random() * prev.length)
-      const tip = prev[idx]
-
-      // Adiciona a dica aberta
-      setOpened(openedPrev => [...openedPrev, tip])
-
-      // Remove a dica sorteada do array restante
-      return prev.filter((_, i) => i !== idx)
-    })
+  const handleTipClick = (index: number, tip: string) => {
+    const isRevealed = revealedTips.has(index)
+    if (!isRevealed) {
+      setRevealedTips(prev => new Set(prev).add(index))
+    }
+    speak(tip)
   }
 
   const submitGuess = () => {
@@ -73,10 +76,10 @@ export default function App() {
     const normAnswer = normalize(current.resposta)
 
     if (normGuess && normGuess === normAnswer) {
-      const closed = remainingTips.length
+      const closed = current.dicas.length - revealedTips.size
       setModal({
         title: 'Acertou!',
-        message: `Você acertou ande ${closed} casas no tabuleiro`,
+        message: `Você acertou! Ande ${closed} casas no tabuleiro`,
         onConfirm: finishCard,
       })
     } else {
@@ -92,12 +95,11 @@ export default function App() {
   }
 
   const handleSkip = () => {
-    if (!current || !allOpened) return
+    if (!current || !allRevealed) return
 
     const nextAvailable = available.filter(c => c !== current)
     setAvailable(nextAvailable)
-    setOpened([])
-    setRemainingTips([])
+    setRevealedTips(new Set())
     setShowGuess(false)
     setGuess('')
     setModal(null)
@@ -106,7 +108,6 @@ export default function App() {
       const idx = Math.floor(Math.random() * nextAvailable.length)
       const card = nextAvailable[idx]
       setCurrent(card)
-      setRemainingTips([...card.dicas])
     } else {
       setCurrent(null)
     }
@@ -146,24 +147,31 @@ export default function App() {
         <div className="card">
           <div className="tema">TEMA: {current.tipo}</div>
 
-          <button
-            className="btn btn-primary"
-            onClick={openTip}
-            disabled={remainingTips.length === 0}
-          >
-            ABRIR DICA ({opened.length}/15)
-          </button>
-
           <div className="tips">
-            {opened.length === 0 ? (
-              <div className="empty">Nenhuma dica aberta ainda</div>
-            ) : (
-              <ol>
-                {opened.map((tip, i) => (
-                  <li key={i}>{tip}</li>
-                ))}
-              </ol>
-            )}
+            {current.dicas.map((tip, index) => {
+              const isRevealed = revealedTips.has(index)
+              return (
+                <div
+                  key={index}
+                  className={`tip-item ${isRevealed ? 'revealed' : 'hidden'}`}
+                  onClick={() => handleTipClick(index, tip)}
+                >
+                  <div className="tip-header">
+                    <span className="tip-number">Dica {index + 1}</span>
+                    {isRevealed && (
+                      <span className="audio-indicator">
+                        {isSpeaking ? '🔊' : '🔊'}
+                      </span>
+                    )}
+                  </div>
+                  {isRevealed ? (
+                    <div className="tip-text">{tip}</div>
+                  ) : (
+                    <div className="tip-placeholder">Clique para revelar</div>
+                  )}
+                </div>
+              )
+            })}
           </div>
 
           {!showGuess ? (
@@ -195,7 +203,7 @@ export default function App() {
             </div>
           )}
 
-          {allOpened && (
+          {allRevealed && (
             <button className="btn btn-warning" onClick={handleSkip}>
               PULAR CARTA
             </button>
