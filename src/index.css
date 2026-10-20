@@ -269,3 +269,46 @@ h1 {
 .btn-secondary {
   background: #475569;
 }
+
+.guesses-container {
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 12px;
+  margin: 12px 0;
+  max-height: 180px;
+  overflow-y: auto;
+  min-height: 70px;
+}
+
+.guesses-empty {
+  color: #64748b;
+  font-style: italic;
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 8px 0;
+}
+
+.guesses-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #94a3b8;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.guesses-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.guesses-list li {
+  padding: 6px 8px;
+  margin-bottom: 4px;
+  background: #1e293b;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  color: #e2e8f0;
+}
